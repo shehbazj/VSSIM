@@ -16,6 +16,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include "../../port.h"
 
 int servSock;
 int clientSock;
@@ -32,7 +33,10 @@ double send_cnt = 0;
 void INIT_LOG_MANAGER(void)
 {
 	if(g_init_log_server == 0){
-		popen("./ssd_monitor", "r");
+		if (popen("./ssd_monitor", "r") == NULL) {
+			printf("popen failed\n");
+		}
+
 		THREAD_SERVER(NULL);
 
 		g_init_log_server = 1;
@@ -73,9 +77,9 @@ void THREAD_SERVER(void* arg)
 #ifdef MNT_DEBUG
 	printf("[SSD_MONITOR] SERVER THREAD CREATED!!!\n");
 #endif	
-	unsigned int len;
 	struct sockaddr_in serverAddr;
 	struct sockaddr_in clientAddr;
+	socklen_t len = sizeof(clientAddr);
 
 	if((servSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0){
 #ifdef MNT_DEBUG
@@ -90,9 +94,9 @@ void THREAD_SERVER(void* arg)
 	int option = 1;
 	setsockopt(servSock, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
 	memset(&serverAddr, 0x00, sizeof(serverAddr));
-	serverAddr.sin_family = AF_INET;
+	serverAddr.sin_family = AF_UNSPEC;
 	serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	serverAddr.sin_port = htons(9995);
+	serverAddr.sin_port = htons(PORT_NO);
 	
 	if(bind(servSock, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
 	{
@@ -110,7 +114,21 @@ void THREAD_SERVER(void* arg)
 #ifdef MNT_DEBUG
 	printf("[SSD_MONITOR] Wait for client....[%d]\n", servSock);
 #endif
-	clientSock = accept(servSock, (struct sockaddr*) &clientAddr, &len);
+
+	while (1) {
+		clientSock = accept(servSock, (struct sockaddr*) &clientAddr, &len);
+		if(clientSock < 0) {
+			if((errno == ENETDOWN || errno == EPROTO || errno == ENOPROTOOPT || errno == EHOSTDOWN ||
+						errno == ENONET || errno == EHOSTUNREACH || errno == EOPNOTSUPP || errno == ENETUNREACH)) {
+				continue;
+			} else {
+				printf("Uncontinuable error %d %s\n", errno, strerror(errno));
+				shutdown(servSock, SHUT_RDWR);
+				exit (EXIT_FAILURE);
+			}
+		}
+	}
+
 #ifdef MNT_DEBUG
 	printf("[SSD_MONITOR] Connected![%d]\n", clientSock);
 	printf("[SSD_MONITOR] Error No. [%d]\n", errno);

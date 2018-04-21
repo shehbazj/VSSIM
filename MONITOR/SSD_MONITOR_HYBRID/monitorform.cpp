@@ -33,7 +33,7 @@ MonitorForm::MonitorForm(QWidget *parent) :
     /* initialize socket connected with VSSIM */
     socket = new QTcpSocket(this);
     connect(socket, SIGNAL(readyRead()), this, SLOT(onReceive()));
-    socket->connectToHost("127.0.0.1", 9995);
+    socket->connectToHost("127.0.0.1", PORT_NO);
 }
 
 MonitorForm::~MonitorForm()

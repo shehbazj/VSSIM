@@ -11,6 +11,7 @@
 #include "ui_monitorform.h"
 #include <QFile>
 #include <QFileDialog>
+#include "../../port.h"
 
 MonitorForm::MonitorForm(QWidget *parent) :
     QDialog(parent),
@@ -23,13 +24,28 @@ MonitorForm::MonitorForm(QWidget *parent) :
 
     /* initialize timer. */
     timer = new QTimer(this);
+	
     connect(timer, SIGNAL(timeout()), this, SLOT(onTimer()));
     timer->start(1);
 
     /* initialize socket connected with VSSIM */
     socket = new QTcpSocket(this);
-    connect(socket, SIGNAL(readyRead()), this, SLOT(onReceive()));
-    socket->connectToHost("127.0.0.1", 9995);
+    if(!socket) {
+		qDebug() << "Error : " << socket->errorString() << "\n";
+	}
+	qDebug() << "CREATED SOCKET SUCCESSFULLY \n";
+//    connect(socket, SIGNAL(readyRead()), this, SLOT(onReceive()));
+//	if(!socket) {
+//		qDebug() << "Error : readyRead signal " << socket->errorString() << "\n";
+//	}
+	socket->connectToHost("127.0.0.1", PORT_NO);
+	socket->waitForConnected();
+	if(!socket) {
+		qDebug() << "Error : connet to host signal " << socket->errorString() << "\n";
+	}
+	else {
+		qDebug() << "Connected successfully\n";
+	}
 }
 
 MonitorForm::~MonitorForm()
